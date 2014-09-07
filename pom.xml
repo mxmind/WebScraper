@@ -6,16 +6,24 @@
 
     <groupId>com.mxmind.ws</groupId>
     <artifactId>parent</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>actors</module>
+    </modules>
 
     <properties>
         <version.java>1.8</version.java>
         <version.akka>2.3.5</version.akka>
         <version.jansi>1.11</version.jansi>
+        <version.slf4j>1.7.2</version.slf4j>
+        <version.lucene>4.0.0</version.lucene>
         <version.jsoup>1.7.3</version.jsoup>
         <version.htmlunit>2.11</version.htmlunit>
         <version.selenium>2.42.2</version.selenium>
         <version.selenium.phantom>1.0.4</version.selenium.phantom>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <build>
@@ -124,6 +132,19 @@
     <dependencyManagement>
         <dependencies>
 
+            <!-- Lucene dependencies -->
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-core</artifactId>
+                <version>${version.lucene}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-analyzers-common</artifactId>
+                <version>${version.lucene}</version>
+            </dependency>
+
             <!-- Akka dependencies -->
             <dependency>
                 <groupId>com.typesafe.akka</groupId>
@@ -163,6 +184,18 @@
                 <groupId>org.fusesource.jansi</groupId>
                 <artifactId>jansi</artifactId>
                 <version>${version.jansi}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${version.slf4j}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.perf4j</groupId>
+                <artifactId>perf4j</artifactId>
+                <version>0.9.16</version>
             </dependency>
 
         </dependencies>
