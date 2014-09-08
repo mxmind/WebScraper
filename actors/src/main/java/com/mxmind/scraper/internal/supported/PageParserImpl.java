@@ -45,6 +45,8 @@ public final class PageParserImpl implements PageParser {
             final String title = doc.title();
             final List<String> linksToVisit = new ArrayList<>();
 
+            // button to download the rest of playlist items
+            // //*[@id="pl-video-list"]/button
             doc.select("tr.pl-video > td:nth-child(4) > a:nth-child(1)")
                .forEach(link -> linksToVisit.add(link.absUrl("href")));
 
@@ -56,7 +58,7 @@ public final class PageParserImpl implements PageParser {
                     final Optional<String> optionalId = Optional.of(matcher.group(1));
                     if(optionalId.isPresent()){
                         final String id = optionalId.get();
-                        System.out.println(id);
+                        //System.out.println(id);
                     }
                 }
             }

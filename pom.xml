@@ -17,6 +17,7 @@
         <version.akka>2.3.5</version.akka>
         <version.jansi>1.11</version.jansi>
         <version.slf4j>1.7.2</version.slf4j>
+        <version.slf4j.log>1.7.2</version.slf4j.log>
         <version.lucene>4.0.0</version.lucene>
         <version.jsoup>1.7.3</version.jsoup>
         <version.htmlunit>2.11</version.htmlunit>
@@ -169,7 +170,7 @@
             <dependency>
                 <groupId>net.sourceforge.htmlunit</groupId>
                 <artifactId>htmlunit</artifactId>
-                <version>2.11</version>
+                <version>${version.htmlunit}</version>
             </dependency>
 
             <!-- JSoup dependencies -->
@@ -190,6 +191,12 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${version.slf4j}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-log4j12</artifactId>
+                <version>${version.slf4j.log}</version>
             </dependency>
 
             <dependency>
