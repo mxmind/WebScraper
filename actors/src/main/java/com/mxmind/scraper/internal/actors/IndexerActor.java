@@ -25,7 +25,6 @@ public final class IndexerActor extends UntypedActor {
     public void onReceive(Object message) throws Exception {
         if (message instanceof PageContent) {
             final PageContent content = (PageContent) message;
-
             indexer.index(content);
             getSender().tell(new IndexedMessage(content.getPath()), getSelf());
         } else if (message.equals(IndexingMessage.COMMIT_MESSAGE)) {

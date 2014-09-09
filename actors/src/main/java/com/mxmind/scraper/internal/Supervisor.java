@@ -49,9 +49,8 @@ public final class Supervisor extends UntypedActor {
         } else if (message instanceof PageContent) {
             final PageContent content = (PageContent) message;
 
-            getIndexerActor().tell(content, getSelf());
             visitedPageStore.addAll(content.getVideoLinks());
-
+            getIndexerActor().tell(content, getSelf());
             LOG.info(visitedPageStore.toString());
 
             if (visitedPageStore.isFinished()) {
