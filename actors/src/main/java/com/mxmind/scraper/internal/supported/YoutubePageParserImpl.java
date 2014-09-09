@@ -30,49 +30,57 @@ public class YoutubePageParserImpl implements PageParser {
 
     @Override
     public PageContent fetchPageContent(String url) {
-        final WebClient webClient = WebClientSingleton.getInstance();
+        WebClient webClient;
+        String title = "video link";
+        final List<String> videoLinks = new ArrayList<>();
+        final boolean isVideoLink = url.contains("youtube.com") && url.contains("watch");
+
+        if(isVideoLink){
+            webClient = WebClientSingleton.getBaseInstance();
+        } else {
+            webClient = WebClientSingleton.getScriptableInstance();
+        }
         try {
             WebRequest request = new WebRequest(new URL(url));
-
-            final Page result = webClient.getPage(request);
-            if(result instanceof UnexpectedPage){
-                return new PageContentImpl(url, Collections.emptyList(), "UnexpectedPage", "");
-            }
-
-            final HtmlPage page = (HtmlPage) result;
-            webClient.waitForBackgroundJavaScript(PAGE_JS_TIMEOUT);
-
-            // 0) sync page val, cannot present page as field, due of "final modificator" restriction;
-            synchronized (page) {
-                page.wait(PAGE_JS_TIMEOUT);
-            }
-            webClient.getAjaxController().processSynchron(page, request, false);
-
-            // 1) max playlist.size <= 200,
-            // 2) playlist splitted on 2 chunks,
-            // 3) if button present, load yet another items.
-            final DomNode node = page.querySelector("#pl-video-list > button");
-            if (node != null && node instanceof HtmlButton) {
-                final HtmlButton button = (HtmlButton) node;
-                button.click();
-            }
-
-            // 4) get the title of page;
-            final String title = page.getTitleText();
-
-            // 5) collect video- and nav- links;
-            final List<String> videoLinks = new ArrayList<>();
-            page.querySelectorAll("tr.pl-video td.pl-video-title a").forEach(input -> {
-                if(input instanceof HtmlAnchor){
-                    final Optional<HtmlAnchor> link = Optional.of((HtmlAnchor) input);
-                    if(link.isPresent()){
-                        final String href = link.get().getHrefAttribute();
-                        videoLinks.add(UrlUtils.resolveUrl(baseUrl, href));
-                    }
+            if(!isVideoLink){
+                final Page result = webClient.getPage(request);
+                if(result instanceof UnexpectedPage){
+                    return new PageContentImpl(url, Collections.emptyList(), "UnexpectedPage", "");
                 }
-            });
-            // 6) close page;
-            page.cleanUp();
+
+                final HtmlPage page = (HtmlPage) result;
+                webClient.waitForBackgroundJavaScript(PAGE_JS_TIMEOUT);
+
+                // 0) sync page val, cannot present page as field, due of "final modificator" restriction;
+                synchronized (page) {
+                    page.wait(PAGE_JS_TIMEOUT);
+                }
+                webClient.getAjaxController().processSynchron(page, request, false);
+
+                // 1) max playlist.size <= 200,
+                // 2) playlist splitted on 2 chunks,
+                // 3) if button present, load yet another items.
+                final DomNode node = page.querySelector("#pl-video-list > button");
+                if (node != null && node instanceof HtmlButton) {
+                    final HtmlButton button = (HtmlButton) node;
+                    button.click();
+                }
+
+                // 4) get the title of page;
+                title = page.getTitleText();
+
+                // 5) collect video- and nav- links;
+                page.querySelectorAll("tr.pl-video td.pl-video-title a").forEach(input -> {
+                    if(input instanceof HtmlAnchor){
+                        final Optional<HtmlAnchor> link = Optional.of((HtmlAnchor) input);
+                        if(link.isPresent()){
+                            final String href = link.get().getHrefAttribute();
+                            videoLinks.add(UrlUtils.resolveUrl(baseUrl, href));
+                        }
+                    }
+                });
+                page.cleanUp();
+            }
             return new PageContentImpl(url, videoLinks, title, "");
 
         } catch (Exception ex) {

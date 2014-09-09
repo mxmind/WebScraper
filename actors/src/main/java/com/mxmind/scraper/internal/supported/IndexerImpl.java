@@ -10,14 +10,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.lucene.document.*;
-import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexWriter;
 
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,40 +39,34 @@ public final class IndexerImpl implements Indexer {
     @Override
     public void index(PageContent pageContent) {
         try {
+            extract(pageContent);
             writer.addDocument(toDocument(pageContent));
-
-            final String path = pageContent.getPath();
-            if(path.contains("youtube.com") && path.contains("watch")){
-                MultiMap videos = extractEmbedded(path);
-                System.out.format("%s -> %d\n", pageContent.getTitle(), videos.size());
-            } else {
-                System.out.format("%s -> %s\n", pageContent.getTitle(), "NONE");
-            }
         } catch (Exception ex) {
             //ex.printStackTrace();
         }
     }
 
-    public void extract(final VideoInfo info, final AtomicBoolean stop, final Runnable notify) {
-        try {
-            try {
-                //  return extractEmbedded(null, info, stop, notify);
-            } catch (EmbeddingDisabled ex) {
-                // return streamCpature(info, stop, notify);
-            }
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+    private boolean isVideoLink(String path) {
+        return path.contains("youtube.com") && path.contains("watch");
+    }
+
+    public void extract(PageContent content) throws Exception {
+        if(isVideoLink(content.getPath())){
+            MultiMap videos = extractEmbedded(content);
+            System.out.format(" -> %d\n", videos.size());
+        } else {
+            System.out.format("%s -> %s\n", content.getTitle(), "PARENT");
         }
     }
 
     public String extractId(String url) {
-        watch: {
+        {
             final Pattern pattern = Pattern.compile("youtube.com/watch?.*v=([^&]*)");
             final Matcher matcher = pattern.matcher(url);
             if (matcher.find())
                 return matcher.group(1);
         }
-        v: {
+        {
             final Pattern pattern = Pattern.compile("youtube.com/v/([^&]*)");
             final Matcher matcher = pattern.matcher(url);
             if (matcher.find())
@@ -83,19 +75,19 @@ public final class IndexerImpl implements Indexer {
         return null;
     }
 
-    MultiMap extractEmbedded(String path) throws Exception {
+    MultiMap extractEmbedded(PageContent content) throws Exception {
+        final String path = content.getPath();
         final String id = extractId(path);
         if (id == null) {
             throw new MalformedURLException("Unknown id to build download link");
         }
         final String url = String.format("http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded", id);
-
-        final WebClient webClient = WebClientSingleton.getInstance();
-        WebRequest request = new WebRequest(new URL(url));
-
+        final WebClient webClient = WebClientSingleton.getBaseInstance();
+        final WebRequest request = new WebRequest(new URL(url));
         final Page page = webClient.getPage(request);
+        final int status = page.getWebResponse().getStatusCode();
 
-        if(page instanceof UnexpectedPage && page.getWebResponse().getStatusCode() == 200){
+        if(page instanceof UnexpectedPage && (status >= 200 && status < 300)){
             final InputStream inputStream = ((UnexpectedPage) page).getInputStream();
             final StringWriter writer = new StringWriter();
             IOUtils.copy(inputStream, writer, ENCODING);
@@ -107,9 +99,11 @@ public final class IndexerImpl implements Indexer {
             }
 
             final String fmtStream = URLDecoder.decode(pairs.get("url_encoded_fmt_stream_map"), ENCODING);
-
+            pairs.get("title");
+            System.out.format("The video: %s", URLDecoder.decode(pairs.get("title"), ENCODING));
             return getEncodedVideos(fmtStream);
         }
+        page.cleanUp();
         return MultiValueMap.decorate(Collections.emptyMap());
     }
 
@@ -137,7 +131,7 @@ public final class IndexerImpl implements Indexer {
             {
                 // n.0) obtain url;
                 String url = null;
-                url: {
+                {
                     final Pattern pattern = Pattern.compile("([^&,]*)[&,]");
                     final Matcher matcher = pattern.matcher(link);
                     if (matcher.find()) {
@@ -147,7 +141,7 @@ public final class IndexerImpl implements Indexer {
                 }
                 // n.1) obtain quality tag;
                 String itag = null;
-                itag: {
+                {
                     final Pattern pattern = Pattern.compile("itag=(\\d+)");
                     final Matcher matcher = pattern.matcher(decodedLink);
                     if (matcher.find()) {
@@ -157,11 +151,13 @@ public final class IndexerImpl implements Indexer {
 
                 // n.2) obtain signature;
                 String signature = null;
-                signature: {
-                    Pattern pattern;
-                    Matcher matcher;
-                    if (signature == null) {
-                        pattern = Pattern.compile("&signature=([^&,]*)");
+                {
+                    Pattern pattern = Pattern.compile("signature=([^&,]*)");
+                    Matcher matcher = pattern.matcher(decodedLink);
+                    if (matcher.find()) {
+                        signature = matcher.group(1);
+                    } else {
+                        pattern = Pattern.compile("signature%3D([^&,%]*)");
                         matcher = pattern.matcher(decodedLink);
                         if (matcher.find()) {
                             signature = matcher.group(1);
@@ -199,8 +195,6 @@ public final class IndexerImpl implements Indexer {
         return videos;
     }
 
-
-
     private Document toDocument(PageContent content) {
         final Document doc = new Document();
         doc.add(new StringField("id", content.getPath(), Field.Store.YES));
@@ -223,8 +217,6 @@ public final class IndexerImpl implements Indexer {
     public void commit() {
         try {
             writer.commit();
-        } catch (CorruptIndexException ex) {
-            throw new IllegalStateException(ex);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
@@ -234,12 +226,8 @@ public final class IndexerImpl implements Indexer {
     public void close() {
         try {
             writer.close(true);
-        } catch (CorruptIndexException ex) {
-            throw new IllegalStateException(ex);
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
-
     }
-
 }
