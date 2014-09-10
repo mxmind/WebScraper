@@ -3,7 +3,8 @@ package com.mxmind.scraper.internal;
 import akka.actor.*;
 import com.mxmind.scraper.api.Executor;
 import com.mxmind.scraper.api.Process;
-import com.mxmind.scraper.internal.supported.*;
+import com.mxmind.scraper.internal.supported.IndexerImpl;
+import com.mxmind.scraper.internal.supported.YoutubePageParserImpl;
 import org.apache.lucene.index.IndexWriter;
 
 /**

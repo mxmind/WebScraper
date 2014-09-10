@@ -4,8 +4,9 @@ import com.gargoylesoftware.htmlunit.*;
 import com.mxmind.scraper.api.Indexer;
 import com.mxmind.scraper.api.PageContent;
 import com.mxmind.scraper.internal.supported.utube.VideoInfo;
-import org.apache.commons.collections.MultiMap;
-import org.apache.commons.collections.map.MultiValueMap;
+import com.mxmind.scraper.internal.supported.utube.VideoQualityCodePage;
+import org.apache.commons.collections4.MultiMap;
+import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -30,6 +31,8 @@ public final class IndexerImpl implements Indexer {
 
     public static final String ENCODING = StandardCharsets.UTF_8.name();
 
+    public static final String GET_INFO_URL = "http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded";
+
     private final IndexWriter writer;
 
     public IndexerImpl(IndexWriter indexWriter) {
@@ -37,12 +40,13 @@ public final class IndexerImpl implements Indexer {
     }
 
     @Override
-    public void index(PageContent pageContent) {
+    public void index(PageContent content) {
         try {
-            extract(pageContent);
-            writer.addDocument(toDocument(pageContent));
-        } catch (Exception ex) {
-            //ex.printStackTrace();
+            Optional<Document> doc = toDocument(content);
+            if(doc.isPresent()){
+                writer.addDocument(doc.get());
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -50,79 +54,97 @@ public final class IndexerImpl implements Indexer {
         return path.contains("youtube.com") && path.contains("watch");
     }
 
-    public void extract(PageContent content) throws Exception {
-        if(isVideoLink(content.getPath())){
-            MultiMap videos = extractEmbedded(content);
-            System.out.format(" -> %d\n", videos.size());
-        } else {
-            System.out.format("%s -> %s\n", content.getTitle(), "PARENT");
+    public VideoInfo extract(PageContent content) throws Exception {
+        VideoInfo info = new VideoInfo();
+        if (isVideoLink(content.getPath())) {
+            info = extractEmbedded(content);
         }
+        return info;
     }
 
     public String extractId(String url) {
         {
             final Pattern pattern = Pattern.compile("youtube.com/watch?.*v=([^&]*)");
             final Matcher matcher = pattern.matcher(url);
-            if (matcher.find())
+            if (matcher.find()) {
                 return matcher.group(1);
+            }
         }
         {
             final Pattern pattern = Pattern.compile("youtube.com/v/([^&]*)");
             final Matcher matcher = pattern.matcher(url);
-            if (matcher.find())
+            if (matcher.find()) {
                 return matcher.group(1);
+            }
         }
         return null;
     }
 
-    MultiMap extractEmbedded(PageContent content) throws Exception {
+    VideoInfo extractEmbedded(PageContent content) throws Exception {
+        // 0) extract video file id;
         final String path = content.getPath();
         final String id = extractId(path);
         if (id == null) {
             throw new MalformedURLException("Unknown id to build download link");
         }
-        final String url = String.format("http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded", id);
+
+        // 1) get video info;
+        final String url = String.format(GET_INFO_URL, id);
         final WebClient webClient = WebClientSingleton.getBaseInstance();
         final WebRequest request = new WebRequest(new URL(url));
         final Page page = webClient.getPage(request);
+
+        // 2) prepare default values;
+        String title = null;
+        MultiMap<VideoQualityCodePage.Code, URL> videos = MultiValueMap.multiValueMap(Collections.emptyMap());
+
+        // 3) check page status;
         final int status = page.getWebResponse().getStatusCode();
+        if (status >= 200 && status < 300) {
 
-        if(page instanceof UnexpectedPage && (status >= 200 && status < 300)){
-            final InputStream inputStream = ((UnexpectedPage) page).getInputStream();
-            final StringWriter writer = new StringWriter();
-            IOUtils.copy(inputStream, writer, ENCODING);
-            String query = writer.toString();
+            // 3.0) read info;
+            String info;
+            try (
+                final InputStream inputStream = ((UnexpectedPage) page).getInputStream();
+                final StringWriter writer = new StringWriter()
+            ) {
+                IOUtils.copy(inputStream, writer, ENCODING);
+                info = writer.toString();
+            }
+            Map<String, String> pairs = getQueryMap(info);
 
-            Map<String, String> pairs = getQueryMap(query);
-            if(!pairs.get("status").equalsIgnoreCase("OK")){
+            // 3.1) is video embedded?
+            if (!pairs.get("status").equalsIgnoreCase("OK")) {
                 throw new EmbeddingDisabled(id);
             }
 
+            // 3.2) write info to immutable object;
             final String fmtStream = URLDecoder.decode(pairs.get("url_encoded_fmt_stream_map"), ENCODING);
-            pairs.get("title");
-            System.out.format("The video: %s", URLDecoder.decode(pairs.get("title"), ENCODING));
-            return getEncodedVideos(fmtStream);
+            title = pairs.get("title");
+            videos = getEncodedVideos(fmtStream);
         }
+
+        // 4) close page and return info;
         page.cleanUp();
-        return MultiValueMap.decorate(Collections.emptyMap());
+        return new VideoInfo(title, videos);
     }
 
-    private Map<String, String> getQueryMap(String query) {
+    private Map<String, String> getQueryMap(String info) {
         try {
-            query = query.trim();
+            info = info.trim();
             final Map<String, String> map = new HashMap<>();
-            final URI body = new URI(null, null, null, -1, null, query, null);
+            final URI body = new URI(null, null, null, -1, null, info, null);
 
             URLEncodedUtils.parse(body, ENCODING).stream().forEach(pair -> map.put(pair.getName(), pair.getValue()));
             return map;
         } catch (URISyntaxException ex) {
-            throw new RuntimeException(query, ex);
+            throw new RuntimeException(info, ex);
         }
     }
 
-    private MultiMap getEncodedVideos(String stream) throws Exception {
+    private MultiMap<VideoQualityCodePage.Code, URL> getEncodedVideos(String stream) throws Exception {
         final String[] links = stream.split("url=");
-        final MultiMap videos = new MultiValueMap();
+        final MultiMap<VideoQualityCodePage.Code, URL> videos = new MultiValueMap<>();
         // 0) split on raw video links;
         for (String link : links) {
             link = StringEscapeUtils.unescapeJava(link);
@@ -182,8 +204,10 @@ public final class IndexerImpl implements Indexer {
                 if (url != null && itag != null && signature != null) {
                     try {
                         url += "&signature=" + signature;
-                        final VideoInfo.VideoQuality quality = VideoInfo.itagMap.get(Integer.decode(itag));
+                        final VideoQualityCodePage.Code quality = VideoQualityCodePage.codeMap.get(Integer.decode(itag));
                         videos.put(quality, new URL(url));
+
+                        // noinspection UnnecessaryContinue
                         continue;
                     } catch (MalformedURLException ignored) {
                         // e) should never happen, we use scraped urls
@@ -195,23 +219,27 @@ public final class IndexerImpl implements Indexer {
         return videos;
     }
 
-    private Document toDocument(PageContent content) {
-        final Document doc = new Document();
-        doc.add(new StringField("id", content.getPath(), Field.Store.YES));
-        doc.add(new StringField("title", content.getTitle(), Field.Store.YES));
-        doc.add(new StringField("content", content.getContent(), Field.Store.NO));
-        return doc;
+    private Optional<Document> toDocument(PageContent content) throws Exception {
+        final VideoInfo info = extract(content);
+        if(info.getVideoLink().isPresent()){
+
+            final Document doc = new Document();
+            doc.add(new StringField("id", content.getPath(), Field.Store.YES));
+            doc.add(new StringField("filename", info.getFilename(), Field.Store.YES));
+            doc.add(new StringField("link", info.getVideoLink().get().toString(), Field.Store.YES));
+            return Optional.of(doc);
+        }
+        return Optional.empty();
     }
 
     public static class EmbeddingDisabled extends RuntimeException {
+
         private final static String MESSAGE_PATTERN = "The video with ID: %s has disabled embedding";
 
         public EmbeddingDisabled(String id) {
             super(String.format(MESSAGE_PATTERN, id));
         }
     }
-
-    // -- old -- //
 
     @Override
     public void commit() {

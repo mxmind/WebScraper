@@ -1,7 +1,12 @@
 package com.mxmind.scraper.internal.supported.utube;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.commons.collections4.MultiMap;
+import org.apache.commons.collections4.map.MultiValueMap;
+import org.apache.commons.lang3.SerializationUtils;
+
+import java.io.Serializable;
+import java.net.URL;
+import java.util.*;
 
 /**
  * The WebScraper solution.
@@ -10,35 +15,49 @@ import java.util.Map;
  * @version 1.0-SNAPSHOT
  * @since 1.0-SNAPSHOT
  */
-public class VideoInfo {
+public final class VideoInfo implements Serializable {
 
-    public static enum VideoQuality {
-        p3072, p1080, p720, p520, p480, p360, p270, p240, p144;
-    };
+    private transient final String title;
 
-    // http://en.wikipedia.org/wiki/YouTube#Quality_and_codecs
-    public static final Map<Integer, VideoQuality> itagMap = new HashMap<Integer, VideoQuality>() {{
-            put(120, VideoQuality.p720);
-            put(102, VideoQuality.p720);
-            put(101, VideoQuality.p360);
-            put(100, VideoQuality.p360);
-            put(85, VideoQuality.p520);
-            put(84, VideoQuality.p720);
-            put(83, VideoQuality.p240);
-            put(82, VideoQuality.p360);
-            put(46, VideoQuality.p1080);
-            put(45, VideoQuality.p720);
-            put(44, VideoQuality.p480);
-            put(43, VideoQuality.p360);
-            put(38, VideoQuality.p3072);
-            put(37, VideoQuality.p1080);
-            put(36, VideoQuality.p240);
-            put(35, VideoQuality.p480);
-            put(34, VideoQuality.p360);
-            put(22, VideoQuality.p720);
-            put(18, VideoQuality.p360);
-            put(17, VideoQuality.p144);
-            put(6, VideoQuality.p270);
-            put(5, VideoQuality.p240);
-    }};
+    private final MultiMap<VideoQualityCodePage.Code, URL> videoLinks;
+
+    public VideoInfo() {
+        this(null, MultiValueMap.multiValueMap(Collections.emptyMap()));
+    }
+
+    public VideoInfo(String title, MultiMap<VideoQualityCodePage.Code, URL> videoLinks) {
+        this.title = title;
+        this.videoLinks = videoLinks;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public Optional<URL> getVideoLink(){
+
+        if(!getVideoLinks().isEmpty()) {
+            final Optional<VideoQualityCodePage.Code> min = getVideoLinks().keySet()
+                .stream()
+                .max(Comparator.<VideoQualityCodePage.Code>naturalOrder());
+            if(min.isPresent()){
+                final VideoQualityCodePage.Code key = min.get();
+
+                @SuppressWarnings("unchecked")
+                final List<URL> links = (List<URL>) getVideoLinks().get(key);
+                final URL link = links.get(0);
+
+                return Optional.of(SerializationUtils.clone(link));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public String getFilename(){
+        return String.format("%s.flv",getTitle().replaceAll("[^a-zA-Z0-9]", "_").trim());
+    }
+
+    public MultiMap<VideoQualityCodePage.Code, URL> getVideoLinks() {
+        return MultiValueMap.<VideoQualityCodePage.Code, URL>multiValueMap(videoLinks);
+    }
 }

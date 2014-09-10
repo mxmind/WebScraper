@@ -2,6 +2,7 @@ package com.mxmind.scraper.internal;
 
 import com.mxmind.scraper.api.Executor;
 import com.mxmind.scraper.api.Process;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
@@ -16,8 +17,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * The WebScraper solution.
@@ -43,8 +47,10 @@ public class ProcessExecutor implements Executor {
     @Override
     public void exec(String path) {
         final File indexDir = Paths.get(System.getProperty(TMP_DIR), WEB_SCRAPER_INDEX).toFile();
-
-        try (final IndexWriter writer = openWriter(indexDir)){
+        final File downloadDir = Paths.get("/Users/mxmind/Downloads/scraper").toFile();
+        try (
+            final IndexWriter writer = openWriter(indexDir)
+        ) {
 
             final StopWatch stopWatch = new LoggingStopWatch();
 
@@ -52,23 +58,57 @@ public class ProcessExecutor implements Executor {
             stopWatch.stop(process.getClass().getSimpleName());
 
             final IndexSearcher searcher = openSearcher(indexDir);
-            final TopDocs result = searcher.search(new MatchAllDocsQuery(), 100);
+            final TopDocs result = searcher.search(new MatchAllDocsQuery(), Integer.MAX_VALUE);
 
-            LOG.info("Found {} results", result.totalHits);
+            // nothing needs from akka, just to build ordinal thread pool;
+            // but if we need to convert files we should to add 2 new actors,
+            // for download and covert tasks accoringly.
+            LOG.info("Found {} videos", result.totalHits);
 
-            Arrays.asList(result.scoreDocs).forEach( scoreDoc -> {
+            final List<Callable<String>> tasks = getDownloadTasks(downloadDir, searcher, result).subList(20, 24);
+
+            final ExecutorService executor = Executors.newFixedThreadPool(10);
+            final List<Future<String>> futures = executor.invokeAll(tasks);
+
+            long count = futures.stream().map(future -> {
                 try {
-                    final Document doc = searcher.doc(scoreDoc.doc);
-                    LOG.debug(doc.get("id"));
-
-                } catch (IOException ex ) {
+                    return future.get();
+                } catch (InterruptedException | ExecutionException ex) {
                     LOG.error(ex.getMessage(), ex);
                 }
-            });
+                return null;
+            }).filter(input -> input != null).count();
 
-        } catch (Exception ex) {
+            LOG.info("Downloded {} videos", count);
+
+        } catch (IOException | InterruptedException | RuntimeException ex) {
             LOG.error(ex.getMessage(), ex);
         }
+    }
+
+    private List<Callable<String>> getDownloadTasks(File dir, IndexSearcher searcher, TopDocs result) throws IOException {
+        final List<Callable<String>> tasks = new ArrayList<>(result.totalHits);
+
+        for (ScoreDoc scoreDoc : result.scoreDocs) {
+            final Document doc = searcher.doc(scoreDoc.doc);
+
+            final URL url = new URL(doc.get("link"));
+
+            // add new Download Job;
+            tasks.add(() -> {
+                String success;
+                try {
+                    File destination = new File(dir.toString(), doc.get("filename"));
+                    FileUtils.copyURLToFile(url, destination);
+
+                    success = destination.toString();
+                } catch (IOException ex) {
+                    success = null;
+                }
+                return success;
+            });
+        }
+        return tasks;
     }
 
     private IndexWriter openWriter(File indexDir) throws IOException {

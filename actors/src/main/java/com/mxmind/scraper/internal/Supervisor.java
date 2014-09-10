@@ -1,7 +1,7 @@
 package com.mxmind.scraper.internal;
 
 import akka.actor.*;
-import akka.routing.RoundRobinRouter;
+import akka.routing.RoundRobinPool;
 import com.mxmind.scraper.api.*;
 import com.mxmind.scraper.api.messages.IndexedMessage;
 import com.mxmind.scraper.api.messages.IndexingMessage;
@@ -33,7 +33,7 @@ public final class Supervisor extends UntypedActor {
         final UntypedActorContext ctx = getContext();
 
         parserActor = ctx.actorOf(Props.create(PageParserActor.class, parser)
-            .withRouter(new RoundRobinRouter(10))
+            .withRouter(new RoundRobinPool(10))
             .withDispatcher(WORKER_DISPATCHER));
 
         indexerActor = ctx.actorOf(Props.create(IndexerActor.class, indexer));
@@ -49,18 +49,22 @@ public final class Supervisor extends UntypedActor {
         } else if (message instanceof PageContent) {
             final PageContent content = (PageContent) message;
 
+
             visitedPageStore.addAll(content.getVideoLinks());
             getIndexerActor().tell(content, getSelf());
-            LOG.info(visitedPageStore.toString());
-
             if (visitedPageStore.isFinished()) {
+                LOG.info(visitedPageStore.toString());
                 commit();
             } else {
-                visitedPageStore.nextBatch().forEach(page -> getParserActor().tell(page, getSelf()));
+                visitedPageStore
+                    .nextBatch()
+                    .parallelStream()
+                    .forEach(page -> getParserActor().tell(page, getSelf()));
             }
         } else if (message instanceof IndexedMessage) {
             IndexedMessage indexedMessage = (IndexedMessage) message;
              visitedPageStore.finished(indexedMessage.path);
+            LOG.info(visitedPageStore.toString());
             if (visitedPageStore.isFinished()) {
                 commit();
             }

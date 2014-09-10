@@ -23,6 +23,7 @@
         <version.htmlunit>2.11</version.htmlunit>
         <version.selenium>2.42.2</version.selenium>
         <version.selenium.phantom>1.0.4</version.selenium.phantom>
+        <version.commons.collections>4.0</version.commons.collections>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -153,31 +154,18 @@
                 <version>${version.akka}</version>
             </dependency>
 
-            <!-- Selenium dependencies -->
-            <dependency>
-                <groupId>org.seleniumhq.selenium</groupId>
-                <artifactId>selenium-java</artifactId>
-                <version>${version.selenium}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.github.detro.ghostdriver</groupId>
-                <artifactId>phantomjsdriver</artifactId>
-                <version>${version.selenium.phantom}</version>
-            </dependency>
-
             <!-- HtmlUnit dependencies -->
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${version.commons.collections}</version>
+            </dependency>
+
             <dependency>
                 <groupId>net.sourceforge.htmlunit</groupId>
                 <artifactId>htmlunit</artifactId>
                 <version>${version.htmlunit}</version>
-            </dependency>
-
-            <!-- JSoup dependencies -->
-            <dependency>
-                <groupId>org.jsoup</groupId>
-                <artifactId>jsoup</artifactId>
-                <version>${version.jsoup}</version>
             </dependency>
 
             <!-- Jansi dependencies -->
