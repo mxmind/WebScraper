@@ -2,7 +2,7 @@ package com.mxmind.scraper.internal;
 
 import com.mxmind.scraper.api.Executor;
 import com.mxmind.scraper.api.Process;
-import org.apache.commons.io.FileUtils;
+import com.mxmind.scraper.internal.supported.utube.VideoDownloder;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
@@ -34,9 +34,13 @@ public class ProcessExecutor implements Executor {
 
     private static final Logger LOG = LoggerFactory.getLogger(Executor.class);
 
-    public static final String TMP_DIR = "java.io.tmpdir";
+    public static final String TMP_DIR = System.getProperty("java.io.tmpdir");
+
+    public static final String DOWNLOAD_DIR = "/Users/vzdomish/Downloads/scraper";
 
     public static final String WEB_SCRAPER_INDEX = "web-scraper-index";
+
+    private static final int CONNS_PER_DOWNLOAD = 8;
 
     private final Process process;
 
@@ -46,8 +50,8 @@ public class ProcessExecutor implements Executor {
 
     @Override
     public void exec(String path) {
-        final File indexDir = Paths.get(System.getProperty(TMP_DIR), WEB_SCRAPER_INDEX).toFile();
-        final File downloadDir = Paths.get("/Users/mxmind/Downloads/scraper").toFile();
+        final File indexDir = Paths.get(TMP_DIR, WEB_SCRAPER_INDEX).toFile();
+        final File downloadDir = Paths.get("/Users/vzdomish/Downloads/scraper").toFile();
         try (
             final IndexWriter writer = openWriter(indexDir)
         ) {
@@ -65,10 +69,10 @@ public class ProcessExecutor implements Executor {
             // for download and covert tasks accoringly.
             LOG.info("Found {} videos", result.totalHits);
 
-            final List<Callable<String>> tasks = getDownloadTasks(downloadDir, searcher, result).subList(20, 24);
+            final List<Callable<Boolean>> tasks = getDownloadTasks(downloadDir, searcher, result).subList(20, 22);
 
             final ExecutorService executor = Executors.newFixedThreadPool(10);
-            final List<Future<String>> futures = executor.invokeAll(tasks);
+            final List<Future<Boolean>> futures = executor.invokeAll(tasks);
 
             long count = futures.stream().map(future -> {
                 try {
@@ -77,7 +81,7 @@ public class ProcessExecutor implements Executor {
                     LOG.error(ex.getMessage(), ex);
                 }
                 return null;
-            }).filter(input -> input != null).count();
+            }).filter(input -> !!input).count();
 
             LOG.info("Downloded {} videos", count);
 
@@ -86,25 +90,24 @@ public class ProcessExecutor implements Executor {
         }
     }
 
-    private List<Callable<String>> getDownloadTasks(File dir, IndexSearcher searcher, TopDocs result) throws IOException {
-        final List<Callable<String>> tasks = new ArrayList<>(result.totalHits);
+    private List<Callable<Boolean>> getDownloadTasks(File dir, IndexSearcher searcher, TopDocs result) throws IOException {
+        final List<Callable<Boolean>> tasks = new ArrayList<>(result.totalHits);
 
         for (ScoreDoc scoreDoc : result.scoreDocs) {
             final Document doc = searcher.doc(scoreDoc.doc);
 
             final URL url = new URL(doc.get("link"));
+            final ArrayList<VideoDownloder> downloadList = new ArrayList<>();
 
             // add new Download Job;
             tasks.add(() -> {
-                String success;
-                try {
-                    File destination = new File(dir.toString(), doc.get("filename"));
-                    FileUtils.copyURLToFile(url, destination);
+                boolean success = true;
 
-                    success = destination.toString();
-                } catch (IOException ex) {
-                    success = null;
-                }
+                final File destination = new File(dir.toString(), doc.get("filename"));
+
+                //FileUtils.copyURLToFile(url, destination);
+                VideoDownloder downloder = new VideoDownloder(url, destination, CONNS_PER_DOWNLOAD);
+                downloadList.add(downloder);
                 return success;
             });
         }
