@@ -179,6 +179,7 @@ public final class IndexerImpl implements Indexer {
     private MultiMap<VideoQualityCodePage.Code, String> getEncodedVideos(String stream) throws Exception {
         final String[] links = stream.split("url=");
         final MultiMap<VideoQualityCodePage.Code, String> videos = new MultiValueMap<>();
+
         // 0) split on raw video links;
         for (String link : links) {
             link = StringEscapeUtils.unescapeJava(link);
@@ -234,6 +235,7 @@ public final class IndexerImpl implements Indexer {
                         }
                     }
                 }
+
                 // n.3) video extension;
                 String ext = null;
                 {
@@ -241,21 +243,22 @@ public final class IndexerImpl implements Indexer {
                     Matcher matcher = pattern.matcher(decodedLink);
                     if (matcher.find()) {
                         ext = matcher.group(1).split(";")[0];
-                        if(ext != null){
+                        if (ext != null) {
                             ext = ext.trim();
                             ext = ext.equalsIgnoreCase("x-flv") ? DEF_FILE_EXT : ext;
                         }
                     }
                     ext = ext == null ? DEF_FILE_EXT : ext;
                 }
+
                 // n.4) build quality map;
                 if (url != null && itag != null && signature != null) {
-                url += "&signature=" + signature + "&scraper-ext=" + ext;
-                final VideoQualityCodePage.Code quality = VideoQualityCodePage.codeMap.get(Integer.decode(itag));
-                videos.put(quality, url);
+                    url += "&signature=" + signature + "&scraper-ext=" + ext;
+                    final VideoQualityCodePage.Code quality = VideoQualityCodePage.codeMap.get(Integer.decode(itag));
+                    videos.put(quality, url);
 
-                // noinspection UnnecessaryContinue
-                continue;
+                    // noinspection UnnecessaryContinue
+                    continue;
 
                 }
                 // n) end;
