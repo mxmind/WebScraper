@@ -30,6 +30,7 @@ public class YoutubePageParserImpl implements PageParser {
     }
 
     @Override
+    @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
     public PageContent fetchPageContent(String url) {
         WebClient webClient;
         String title = "video link";
@@ -37,9 +38,9 @@ public class YoutubePageParserImpl implements PageParser {
         final boolean isVideoLink = url.contains("youtube.com") && url.contains("watch");
 
         if (isVideoLink) {
-            webClient = WebClientFactory.getBaseInstance();
+            webClient = WebClientStaticProvider.getBaseInstance();
         } else {
-            webClient = WebClientFactory.getScriptableInstance();
+            webClient = WebClientStaticProvider.getScriptableInstance();
         }
         try {
             WebRequest request = new WebRequest(new URL(url));

@@ -6,7 +6,6 @@ import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.Serializable;
-import java.net.URL;
 import java.util.*;
 
 /**
@@ -22,18 +21,18 @@ public final class VideoInfo implements Serializable {
 
     private transient final String title;
 
-    private final MultiMap<VideoQualityCodePage.Code, URL> videoLinks;
+    private final MultiMap<VideoQualityCodePage.Code, String> videoLinks;
 
     public VideoInfo() {
         this(null, MultiValueMap.multiValueMap(Collections.emptyMap()));
     }
 
-    public VideoInfo(String title, MultiMap<VideoQualityCodePage.Code, URL> videoLinks) {
+    public VideoInfo(String title, MultiMap<VideoQualityCodePage.Code, String> videoLinks) {
         this.title = title;
         this.videoLinks = videoLinks;
     }
 
-    public Optional<URL> getVideoLink() {
+    public Optional<String> getVideoLink() {
         final VideoQualityCodePage.Code filterCode = VideoQualityCodePage.Code.valueOf(CODE_NAME);
 
         if (!getVideoLinks().isEmpty()) {
@@ -45,8 +44,8 @@ public final class VideoInfo implements Serializable {
                 final VideoQualityCodePage.Code key = min.get();
 
                 @SuppressWarnings("unchecked")
-                final List<URL> links = (List<URL>) getVideoLinks().get(key);
-                final URL link = links.get(0);
+                final List<String> links = (List<String>) getVideoLinks().get(key);
+                final String link = links.get(0);
 
                 return Optional.of(SerializationUtils.clone(link));
             }
@@ -54,12 +53,12 @@ public final class VideoInfo implements Serializable {
         return Optional.empty();
     }
 
-    public MultiMap<VideoQualityCodePage.Code, URL> getVideoLinks() {
-        return MultiValueMap.<VideoQualityCodePage.Code, URL>multiValueMap(videoLinks);
+    public MultiMap<VideoQualityCodePage.Code, String> getVideoLinks() {
+        return MultiValueMap.<VideoQualityCodePage.Code, String>multiValueMap(videoLinks);
     }
 
     public String getFilename() {
-        return String.format("%s.flv", getTitle().replaceAll("[^a-zA-Z0-9]", "_").trim());
+        return getTitle().replaceAll("[^a-zA-Z0-9]", "_").trim();
     }
 
     public String getTitle() {

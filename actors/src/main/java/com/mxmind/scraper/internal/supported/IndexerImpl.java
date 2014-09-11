@@ -33,6 +33,8 @@ public final class IndexerImpl implements Indexer {
 
     private static final String GET_INFO_URL = "http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded";
 
+    public static final String DEF_FILE_EXT = "flv";
+
     private final IndexWriter writer;
 
     public IndexerImpl(IndexWriter indexWriter) {
@@ -71,11 +73,12 @@ public final class IndexerImpl implements Indexer {
     private Optional<Document> toDocument(PageContent content) throws Exception {
         final VideoInfo info = extract(content);
         if (info.getVideoLink().isPresent()) {
-
+            String[] linkTokens = info.getVideoLink().get().split("&scraper-ext=");
             final Document doc = new Document();
             doc.add(new StringField("id", content.getPath(), Field.Store.YES));
             doc.add(new StringField("filename", info.getFilename(), Field.Store.YES));
-            doc.add(new StringField("link", info.getVideoLink().get().toString(), Field.Store.YES));
+            doc.add(new StringField("link", linkTokens[0], Field.Store.YES));
+            doc.add(new StringField("ext", linkTokens[1], Field.Store.YES));
             return Optional.of(doc);
         }
         return Optional.empty();
@@ -103,13 +106,13 @@ public final class IndexerImpl implements Indexer {
 
         // 1) get video info;
         final String url = String.format(GET_INFO_URL, id);
-        final WebClient webClient = WebClientFactory.getBaseInstance();
+        final WebClient webClient = WebClientStaticProvider.getBaseInstance();
         final WebRequest request = new WebRequest(new URL(url));
         final Page page = webClient.getPage(request);
 
         // 2) prepare default values;
         String title = null;
-        MultiMap<VideoQualityCodePage.Code, URL> videos = MultiValueMap.multiValueMap(Collections.emptyMap());
+        MultiMap<VideoQualityCodePage.Code, String> videos = MultiValueMap.multiValueMap(Collections.emptyMap());
 
         // 3) check page status;
         final int status = page.getWebResponse().getStatusCode();
@@ -173,9 +176,9 @@ public final class IndexerImpl implements Indexer {
         }
     }
 
-    private MultiMap<VideoQualityCodePage.Code, URL> getEncodedVideos(String stream) throws Exception {
+    private MultiMap<VideoQualityCodePage.Code, String> getEncodedVideos(String stream) throws Exception {
         final String[] links = stream.split("url=");
-        final MultiMap<VideoQualityCodePage.Code, URL> videos = new MultiValueMap<>();
+        final MultiMap<VideoQualityCodePage.Code, String> videos = new MultiValueMap<>();
         // 0) split on raw video links;
         for (String link : links) {
             link = StringEscapeUtils.unescapeJava(link);
@@ -231,18 +234,29 @@ public final class IndexerImpl implements Indexer {
                         }
                     }
                 }
-                // n.3) build quality map;
-                if (url != null && itag != null && signature != null) {
-                    try {
-                        url += "&signature=" + signature;
-                        final VideoQualityCodePage.Code quality = VideoQualityCodePage.codeMap.get(Integer.decode(itag));
-                        videos.put(quality, new URL(url));
-
-                        // noinspection UnnecessaryContinue
-                        continue;
-                    } catch (MalformedURLException ignored) {
-                        // e) should never happen, we use scraped urls
+                // n.3) video extension;
+                String ext = null;
+                {
+                    Pattern pattern = Pattern.compile("type=video/([^&,%]*)");
+                    Matcher matcher = pattern.matcher(decodedLink);
+                    if (matcher.find()) {
+                        ext = matcher.group(1).split(";")[0];
+                        if(ext != null){
+                            ext = ext.trim();
+                            ext = ext.equalsIgnoreCase("x-flv") ? DEF_FILE_EXT : ext;
+                        }
                     }
+                    ext = ext == null ? DEF_FILE_EXT : ext;
+                }
+                // n.4) build quality map;
+                if (url != null && itag != null && signature != null) {
+                url += "&signature=" + signature + "&scraper-ext=" + ext;
+                final VideoQualityCodePage.Code quality = VideoQualityCodePage.codeMap.get(Integer.decode(itag));
+                videos.put(quality, url);
+
+                // noinspection UnnecessaryContinue
+                continue;
+
                 }
                 // n) end;
             }

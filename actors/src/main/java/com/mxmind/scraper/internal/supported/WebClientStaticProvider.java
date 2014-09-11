@@ -15,7 +15,7 @@ import static java.lang.System.out;
  * @version 1.0-SNAPSHOT
  * @since 1.0-SNAPSHOT
  */
-public abstract class WebClientFactory {
+public abstract class WebClientStaticProvider {
 
     static {
         LogFactory.getFactory().setAttribute("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
@@ -42,7 +42,7 @@ public abstract class WebClientFactory {
                     syncInstance.setAjaxController(new NicelyResynchronizingAjaxController());
 
                     scriptableInstance = syncInstance;
-                    out.format("Scraper scriptable web client is configured \r");
+                    out.format("Scraper scriptable web client is configured. Please wait..\r");
                 }
             }
         }

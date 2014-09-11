@@ -92,6 +92,8 @@ public class ProcessExecutor implements Executor {
                 int begin = start > len ? len : Math.max(start, 0);
                 int end = Math.min(tasks.size(), (begin + limit));
                 tasks = tasks.subList(begin, end < start ? start : end);
+
+                out.format("\r\rScraper begin download of %d videos from %d position inclusively \n\n", limit, begin);
             }
 
             // 2) execute these tasks;
@@ -147,7 +149,8 @@ public class ProcessExecutor implements Executor {
             final Document doc = searcher.doc(scoreDoc.doc);
 
             final URL url = new URL(doc.get("link"));
-            final File outputFile = new File(dir, doc.get("filename"));
+            final String file = String.format("%s.%s", doc.get("filename"), doc.get("ext"));
+            final File outputFile = new File(dir, file);
             tasks.add(new VideoDownloder(url, outputFile, CONNS_PER_DOWNLOAD));
         }
         return tasks;
