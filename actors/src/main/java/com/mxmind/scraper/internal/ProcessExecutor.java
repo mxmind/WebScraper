@@ -93,7 +93,7 @@ public class ProcessExecutor implements Executor {
                 int end = Math.min(tasks.size(), (begin + limit));
                 tasks = tasks.subList(begin, end < start ? start : end);
 
-                out.format("\r\rScraper begin download of %d videos from %d position inclusively \n\n", limit, begin);
+                out.format("\r\rScraper begin download %d videos from %d position inclusively \n\n", limit, begin);
             }
 
             // 2) execute these tasks;
