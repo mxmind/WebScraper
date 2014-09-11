@@ -59,7 +59,7 @@ public final class VideoInfo implements Serializable {
     }
 
     public String getFilename() {
-        return UrlUtils.decode(getTitle()).replaceAll("[^a-zA-Z0-9а-яА-Я]", "_").trim();
+        return UrlUtils.decode(getTitle()).replaceAll("[!@#\\$%^&*()]", "_").trim();
     }
 
     public String getTitle() {
