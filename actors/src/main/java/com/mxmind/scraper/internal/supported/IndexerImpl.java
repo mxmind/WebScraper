@@ -33,7 +33,7 @@ public final class IndexerImpl implements Indexer {
 
     private static final String GET_INFO_URL = "http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded";
 
-    public static final String DEF_FILE_EXT = "flv";
+    private static final String DEF_FILE_EXT = "flv";
 
     private final IndexWriter writer;
 
