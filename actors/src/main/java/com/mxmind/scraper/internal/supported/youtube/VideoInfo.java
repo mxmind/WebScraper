@@ -1,5 +1,6 @@
 package com.mxmind.scraper.internal.supported.youtube;
 
+import com.gargoylesoftware.htmlunit.util.UrlUtils;
 import com.mxmind.scraper.Main;
 import org.apache.commons.collections4.MultiMap;
 import org.apache.commons.collections4.map.MultiValueMap;
@@ -58,7 +59,7 @@ public final class VideoInfo implements Serializable {
     }
 
     public String getFilename() {
-        return getTitle().replaceAll("[^a-zA-Z0-9]", "_").trim();
+        return UrlUtils.decode(getTitle()).replaceAll("[^a-zA-Z0-9а-яА-Я]", "_").trim();
     }
 
     public String getTitle() {
