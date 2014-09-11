@@ -2,10 +2,11 @@ package com.mxmind.scraper.internal.supported;
 
 import com.gargoylesoftware.htmlunit.*;
 import org.apache.commons.logging.LogFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static java.lang.System.out;
 
 /**
  * The WebScraper solution.
@@ -14,16 +15,14 @@ import java.util.logging.Level;
  * @version 1.0-SNAPSHOT
  * @since 1.0-SNAPSHOT
  */
-public abstract class WebClientSingleton {
+public abstract class WebClientFactory {
 
     static {
         LogFactory.getFactory().setAttribute("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
 
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.OFF);
-        java.util.logging.Logger.getLogger("org.apache.commons.httpclient").setLevel(Level.OFF);
+        Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.OFF);
+        Logger.getLogger("org.apache.commons.httpclient").setLevel(Level.OFF);
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(WebClientSingleton.class);
 
     private static volatile WebClient scriptableInstance;
 
@@ -43,9 +42,7 @@ public abstract class WebClientSingleton {
                     syncInstance.setAjaxController(new NicelyResynchronizingAjaxController());
 
                     scriptableInstance = syncInstance;
-                    if (LOG.isInfoEnabled()) {
-                        LOG.info("The Scriptable Web Client is configured");
-                    }
+                    out.format("Scraper scriptable web client is configured \r");
                 }
             }
         }
@@ -61,10 +58,10 @@ public abstract class WebClientSingleton {
                     syncInstance = new WebClient(BrowserVersion.FIREFOX_10);
                     syncInstance.getOptions().setCssEnabled(false);
                     syncInstance.getOptions().setJavaScriptEnabled(false);
+
                     baseInstance = syncInstance;
-                    if (LOG.isInfoEnabled()) {
-                        LOG.info("The Base Web Client is configured");
-                    }
+                    out.format("Scraper base web client is configured \r");
+
                 }
             }
         }

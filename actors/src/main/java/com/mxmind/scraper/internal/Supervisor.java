@@ -2,14 +2,15 @@ package com.mxmind.scraper.internal;
 
 import akka.actor.*;
 import akka.routing.RoundRobinPool;
+import com.mxmind.scraper.Main;
 import com.mxmind.scraper.api.*;
 import com.mxmind.scraper.api.messages.IndexedMessage;
 import com.mxmind.scraper.api.messages.IndexingMessage;
 import com.mxmind.scraper.internal.actors.IndexerActor;
 import com.mxmind.scraper.internal.actors.PageParserActor;
 import com.mxmind.scraper.internal.stores.VisitedPageStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.lang.System.out;
 
 /**
  * The WebScraper solution.
@@ -21,11 +22,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({"deprecation"})
 public final class Supervisor extends UntypedActor {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Supervisor.class);
+    public static final String WORKER_DISPATCHER = "worker-dispatcher";
+
+    private static final int POOL_SIZE = Main.props.getInt("scraper.round.robin.pool.size", 10);
 
     private final VisitedPageStore visitedPageStore = new VisitedPageStore();
-
-    public static final String WORKER_DISPATCHER = "worker-dispatcher";
 
     private final ActorRef indexerActor, parserActor;
 
@@ -33,7 +34,7 @@ public final class Supervisor extends UntypedActor {
         final UntypedActorContext ctx = getContext();
 
         parserActor = ctx.actorOf(Props.create(PageParserActor.class, parser)
-            .withRouter(new RoundRobinPool(10))
+            .withRouter(new RoundRobinPool(POOL_SIZE))
             .withDispatcher(WORKER_DISPATCHER));
 
         indexerActor = ctx.actorOf(Props.create(IndexerActor.class, indexer));
@@ -49,11 +50,10 @@ public final class Supervisor extends UntypedActor {
         } else if (message instanceof PageContent) {
             final PageContent content = (PageContent) message;
 
-
             visitedPageStore.addAll(content.getVideoLinks());
             getIndexerActor().tell(content, getSelf());
             if (visitedPageStore.isFinished()) {
-                LOG.info(visitedPageStore.toString());
+                out.format("Scraper indexing %s \r", visitedPageStore);
                 commit();
             } else {
                 visitedPageStore
@@ -63,13 +63,14 @@ public final class Supervisor extends UntypedActor {
             }
         } else if (message instanceof IndexedMessage) {
             IndexedMessage indexedMessage = (IndexedMessage) message;
-             visitedPageStore.finished(indexedMessage.path);
-            LOG.info(visitedPageStore.toString());
+            visitedPageStore.finished(indexedMessage.path);
+            out.format("Scraper indexing %s \r", visitedPageStore);
             if (visitedPageStore.isFinished()) {
                 commit();
             }
         } else if (message == IndexingMessage.COMMITTED_MESSAGE) {
             getContext().system().shutdown();
+            out.format("Scraper visited %d links\n", visitedPageStore.size());
         }
     }
 

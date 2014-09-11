@@ -3,8 +3,8 @@ package com.mxmind.scraper.internal.supported;
 import com.gargoylesoftware.htmlunit.*;
 import com.mxmind.scraper.api.Indexer;
 import com.mxmind.scraper.api.PageContent;
-import com.mxmind.scraper.internal.supported.utube.VideoInfo;
-import com.mxmind.scraper.internal.supported.utube.VideoQualityCodePage;
+import com.mxmind.scraper.internal.supported.youtube.VideoInfo;
+import com.mxmind.scraper.internal.supported.youtube.VideoQualityCodePage;
 import org.apache.commons.collections4.MultiMap;
 import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.commons.io.IOUtils;
@@ -29,9 +29,9 @@ import java.util.regex.Pattern;
  */
 public final class IndexerImpl implements Indexer {
 
-    public static final String ENCODING = StandardCharsets.UTF_8.name();
+    private static final String ENCODING = StandardCharsets.UTF_8.name();
 
-    public static final String GET_INFO_URL = "http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded";
+    private static final String GET_INFO_URL = "http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded";
 
     private final IndexWriter writer;
 
@@ -40,18 +40,45 @@ public final class IndexerImpl implements Indexer {
     }
 
     @Override
+    public void commit() {
+        try {
+            writer.commit();
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    @Override
     public void index(PageContent content) {
         try {
             Optional<Document> doc = toDocument(content);
-            if(doc.isPresent()){
+            if (doc.isPresent()) {
                 writer.addDocument(doc.get());
             }
         } catch (Exception ignored) {
         }
     }
 
-    private boolean isVideoLink(String path) {
-        return path.contains("youtube.com") && path.contains("watch");
+    @Override
+    public void close() {
+        try {
+            writer.close(true);
+        } catch (IOException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private Optional<Document> toDocument(PageContent content) throws Exception {
+        final VideoInfo info = extract(content);
+        if (info.getVideoLink().isPresent()) {
+
+            final Document doc = new Document();
+            doc.add(new StringField("id", content.getPath(), Field.Store.YES));
+            doc.add(new StringField("filename", info.getFilename(), Field.Store.YES));
+            doc.add(new StringField("link", info.getVideoLink().get().toString(), Field.Store.YES));
+            return Optional.of(doc);
+        }
+        return Optional.empty();
     }
 
     public VideoInfo extract(PageContent content) throws Exception {
@@ -62,22 +89,8 @@ public final class IndexerImpl implements Indexer {
         return info;
     }
 
-    public String extractId(String url) {
-        {
-            final Pattern pattern = Pattern.compile("youtube.com/watch?.*v=([^&]*)");
-            final Matcher matcher = pattern.matcher(url);
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
-        }
-        {
-            final Pattern pattern = Pattern.compile("youtube.com/v/([^&]*)");
-            final Matcher matcher = pattern.matcher(url);
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
-        }
-        return null;
+    private boolean isVideoLink(String path) {
+        return path.contains("youtube.com") && path.contains("watch");
     }
 
     VideoInfo extractEmbedded(PageContent content) throws Exception {
@@ -90,7 +103,7 @@ public final class IndexerImpl implements Indexer {
 
         // 1) get video info;
         final String url = String.format(GET_INFO_URL, id);
-        final WebClient webClient = WebClientSingleton.getBaseInstance();
+        final WebClient webClient = WebClientFactory.getBaseInstance();
         final WebRequest request = new WebRequest(new URL(url));
         final Page page = webClient.getPage(request);
 
@@ -127,6 +140,24 @@ public final class IndexerImpl implements Indexer {
         // 4) close page and return info;
         page.cleanUp();
         return new VideoInfo(title, videos);
+    }
+
+    public String extractId(String url) {
+        {
+            final Pattern pattern = Pattern.compile("youtube.com/watch?.*v=([^&]*)");
+            final Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        }
+        {
+            final Pattern pattern = Pattern.compile("youtube.com/v/([^&]*)");
+            final Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        }
+        return null;
     }
 
     private Map<String, String> getQueryMap(String info) {
@@ -219,43 +250,12 @@ public final class IndexerImpl implements Indexer {
         return videos;
     }
 
-    private Optional<Document> toDocument(PageContent content) throws Exception {
-        final VideoInfo info = extract(content);
-        if(info.getVideoLink().isPresent()){
-
-            final Document doc = new Document();
-            doc.add(new StringField("id", content.getPath(), Field.Store.YES));
-            doc.add(new StringField("filename", info.getFilename(), Field.Store.YES));
-            doc.add(new StringField("link", info.getVideoLink().get().toString(), Field.Store.YES));
-            return Optional.of(doc);
-        }
-        return Optional.empty();
-    }
-
     public static class EmbeddingDisabled extends RuntimeException {
 
         private final static String MESSAGE_PATTERN = "The video with ID: %s has disabled embedding";
 
         public EmbeddingDisabled(String id) {
             super(String.format(MESSAGE_PATTERN, id));
-        }
-    }
-
-    @Override
-    public void commit() {
-        try {
-            writer.commit();
-        } catch (IOException ex) {
-            throw new IllegalStateException(ex);
-        }
-    }
-
-    @Override
-    public void close() {
-        try {
-            writer.close(true);
-        } catch (IOException ex) {
-            throw new IllegalStateException(ex);
         }
     }
 }

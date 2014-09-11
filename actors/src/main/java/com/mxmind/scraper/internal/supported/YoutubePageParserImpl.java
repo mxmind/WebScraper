@@ -3,6 +3,7 @@ package com.mxmind.scraper.internal.supported;
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.gargoylesoftware.htmlunit.util.UrlUtils;
+import com.mxmind.scraper.Main;
 import com.mxmind.scraper.api.PageContent;
 import com.mxmind.scraper.api.PageParser;
 import org.slf4j.Logger;
@@ -12,15 +13,15 @@ import java.net.URL;
 import java.util.*;
 
 /**
- * @author vzdomish
+ * @author mxmind
  * @version 1.0.0
  * @since 1.0.0
  */
 public class YoutubePageParserImpl implements PageParser {
 
-    private static final Logger LOG = LoggerFactory.getLogger(YoutubePageParserImpl.class);
+    private static final int PAGE_JS_TIMEOUT = Main.props.getInt("scraper.page.timeout", 1000);
 
-    public static final int PAGE_JS_TIMEOUT = 1000;
+    private static final Logger LOG = LoggerFactory.getLogger(YoutubePageParserImpl.class);
 
     private final String baseUrl;
 
@@ -35,16 +36,16 @@ public class YoutubePageParserImpl implements PageParser {
         final List<String> videoLinks = new ArrayList<>();
         final boolean isVideoLink = url.contains("youtube.com") && url.contains("watch");
 
-        if(isVideoLink){
-            webClient = WebClientSingleton.getBaseInstance();
+        if (isVideoLink) {
+            webClient = WebClientFactory.getBaseInstance();
         } else {
-            webClient = WebClientSingleton.getScriptableInstance();
+            webClient = WebClientFactory.getScriptableInstance();
         }
         try {
             WebRequest request = new WebRequest(new URL(url));
-            if(!isVideoLink){
+            if (!isVideoLink) {
                 final Page result = webClient.getPage(request);
-                if(result instanceof UnexpectedPage){
+                if (result instanceof UnexpectedPage) {
                     return new PageContentImpl(url, Collections.emptyList(), "UnexpectedPage", "");
                 }
 
@@ -71,9 +72,9 @@ public class YoutubePageParserImpl implements PageParser {
 
                 // 5) collect video- and nav- links;
                 page.querySelectorAll("tr.pl-video td.pl-video-title a").forEach(input -> {
-                    if(input instanceof HtmlAnchor){
+                    if (input instanceof HtmlAnchor) {
                         final Optional<HtmlAnchor> link = Optional.of((HtmlAnchor) input);
-                        if(link.isPresent()){
+                        if (link.isPresent()) {
                             final String href = link.get().getHrefAttribute();
                             videoLinks.add(UrlUtils.resolveUrl(baseUrl, href));
                         }

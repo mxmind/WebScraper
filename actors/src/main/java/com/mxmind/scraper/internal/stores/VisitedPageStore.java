@@ -14,7 +14,9 @@ import java.util.*;
 public final class VisitedPageStore implements PageStore {
 
     private Set<String> pagesToVisit = new HashSet<>();
+
     private Set<String> pages = new HashSet<>();
+
     private Set<String> inProgress = new HashSet<>();
 
     @Override
@@ -54,6 +56,11 @@ public final class VisitedPageStore implements PageStore {
     }
 
     @Override
+    public int size() {
+        return pages.size();
+    }
+
+    @Override
     public void finished(String page) {
         inProgress.remove(page);
     }
@@ -65,7 +72,7 @@ public final class VisitedPageStore implements PageStore {
 
     @Override
     public String toString() {
-        return String.format("inProgress: %1$3s, pages: %2$3s", inProgress.size(), pages.size());
+        return String.format("in progress: %1$3s, pages: %2$3s", inProgress.size(), pages.size());
     }
 
 }
