@@ -1,15 +1,16 @@
 package com.mxmind.scraper.internal.supported.youtube;
 
-import com.mxmind.scraper.Main;
-import com.mxmind.scraper.api.youtube.Downloader;
-import org.apache.http.HttpStatus;
+import static java.lang.System.out;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 
-import static java.lang.System.out;
+import org.apache.http.HttpStatus;
+
+import com.mxmind.scraper.Main;
+import com.mxmind.scraper.api.youtube.Downloader;
 
 /**
  * @author mxmind
@@ -81,7 +82,8 @@ public final class VideoDownloder extends Observable implements Downloader {
             // 4) if the state is DOWNLOADING (no error) -> start downloading
             if (getCurrentState().equals(DownloadingState.DOWNLOADING)) {
 
-                // 4.0) check whether we have list of download threads or not, if not -> init download
+                // 4.0) check whether we have list of download threads or not,
+                // if not -> init download
                 if (threads.size() == 0) {
                     if (fileSize > MIN_DOWNLOAD_SIZE) {
                         // 4.0.0) downloading size for each thread
@@ -131,7 +133,6 @@ public final class VideoDownloder extends Observable implements Downloader {
     }
 
     @Override
-    @SuppressWarnings("unused")
     public float getProgress() {
         return ((float) getDownloadedSize() / getFileSize()) * 100;
     }
@@ -180,6 +181,7 @@ public final class VideoDownloder extends Observable implements Downloader {
      */
     private final class DownloadThread implements Runnable {
 
+        @SuppressWarnings("unused")
         protected int threadId;
 
         protected URL url;

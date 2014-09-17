@@ -1,10 +1,12 @@
 package com.mxmind.scraper.internal.supported;
 
-import com.gargoylesoftware.htmlunit.*;
-import com.mxmind.scraper.api.Indexer;
-import com.mxmind.scraper.api.PageContent;
-import com.mxmind.scraper.internal.supported.youtube.VideoInfo;
-import com.mxmind.scraper.internal.supported.youtube.VideoQualityCodePage;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.commons.collections4.MultiMap;
 import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.commons.io.IOUtils;
@@ -13,12 +15,11 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
 
-import java.io.*;
-import java.net.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.gargoylesoftware.htmlunit.*;
+import com.mxmind.scraper.api.Indexer;
+import com.mxmind.scraper.api.PageContent;
+import com.mxmind.scraper.internal.supported.youtube.VideoInfo;
+import com.mxmind.scraper.internal.supported.youtube.VideoQualityCodePage;
 
 /**
  * The WebScraper solution.
@@ -120,10 +121,8 @@ public final class IndexerImpl implements Indexer {
 
             // 3.0) read info;
             String info;
-            try (
-                final InputStream inputStream = ((UnexpectedPage) page).getInputStream();
-                final StringWriter writer = new StringWriter()
-            ) {
+            try (final InputStream inputStream = ((UnexpectedPage) page).getInputStream();
+                    final StringWriter writer = new StringWriter()) {
                 IOUtils.copy(inputStream, writer, ENCODING);
                 info = writer.toString();
             }
@@ -268,6 +267,8 @@ public final class IndexerImpl implements Indexer {
     }
 
     public static class EmbeddingDisabled extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
 
         private final static String MESSAGE_PATTERN = "The video with ID: %s has disabled embedding";
 

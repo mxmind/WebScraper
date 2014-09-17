@@ -16,7 +16,9 @@ public class VideoQualityCodePage {
         p3072, p1080, p720, p520, p480, p360, p270, p240, p144
     }
 
+    // @off
     // http://en.wikipedia.org/wiki/YouTube#Quality_and_codecs
+    @SuppressWarnings("serial")
     public static final Map<Integer, Code> codeMap = new HashMap<Integer, Code>() {{
         put(120, Code.p720);
         put(102, Code.p720);
@@ -41,4 +43,5 @@ public class VideoQualityCodePage {
         put(6, Code.p270);
         put(5, Code.p240);
     }};
+    // @on
 }

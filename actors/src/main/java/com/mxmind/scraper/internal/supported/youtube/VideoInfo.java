@@ -1,13 +1,14 @@
 package com.mxmind.scraper.internal.supported.youtube;
 
-import com.gargoylesoftware.htmlunit.util.UrlUtils;
-import com.mxmind.scraper.Main;
+import java.io.Serializable;
+import java.util.*;
+
 import org.apache.commons.collections4.MultiMap;
 import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.commons.lang3.SerializationUtils;
 
-import java.io.Serializable;
-import java.util.*;
+import com.gargoylesoftware.htmlunit.util.UrlUtils;
+import com.mxmind.scraper.Main;
 
 /**
  * The WebScraper solution.
@@ -17,6 +18,8 @@ import java.util.*;
  * @since 1.0-SNAPSHOT
  */
 public final class VideoInfo implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private static final String CODE_NAME = Main.props.getString("scraper.video.quality", "p144");
 
@@ -37,10 +40,12 @@ public final class VideoInfo implements Serializable {
         final VideoQualityCodePage.Code filterCode = VideoQualityCodePage.Code.valueOf(CODE_NAME);
 
         if (!getVideoLinks().isEmpty()) {
+            // @off
             final Optional<VideoQualityCodePage.Code> min = getVideoLinks().keySet()
-                .stream()
-                .filter(key -> key.equals(filterCode))
-                .max(Comparator.<VideoQualityCodePage.Code>naturalOrder());
+                    .stream()
+                    .filter(key -> key.equals(filterCode))
+                    .max(Comparator.<VideoQualityCodePage.Code> naturalOrder());
+            // @on
             if (min.isPresent()) {
                 final VideoQualityCodePage.Code key = min.get();
 
@@ -55,7 +60,7 @@ public final class VideoInfo implements Serializable {
     }
 
     public MultiMap<VideoQualityCodePage.Code, String> getVideoLinks() {
-        return MultiValueMap.<VideoQualityCodePage.Code, String>multiValueMap(videoLinks);
+        return MultiValueMap.<VideoQualityCodePage.Code, String> multiValueMap(videoLinks);
     }
 
     public String getFilename() {

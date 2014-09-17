@@ -1,7 +1,9 @@
 package com.mxmind.scraper.internal;
 
+import static java.lang.System.out;
 import akka.actor.*;
 import akka.routing.RoundRobinPool;
+
 import com.mxmind.scraper.Main;
 import com.mxmind.scraper.api.*;
 import com.mxmind.scraper.api.messages.IndexedMessage;
@@ -10,8 +12,6 @@ import com.mxmind.scraper.internal.actors.IndexerActor;
 import com.mxmind.scraper.internal.actors.PageParserActor;
 import com.mxmind.scraper.internal.stores.VisitedPageStore;
 
-import static java.lang.System.out;
-
 /**
  * The WebScraper solution.
  *
@@ -19,7 +19,7 @@ import static java.lang.System.out;
  * @version 1.0-SNAPSHOT
  * @since 1.0-SNAPSHOT
  */
-@SuppressWarnings({"deprecation"})
+
 public final class Supervisor extends UntypedActor {
 
     public static final String WORKER_DISPATCHER = "worker-dispatcher";
@@ -32,11 +32,11 @@ public final class Supervisor extends UntypedActor {
 
     public Supervisor(Indexer indexer, PageParser parser) {
         final UntypedActorContext ctx = getContext();
-
+        // @off
         parserActor = ctx.actorOf(Props.create(PageParserActor.class, parser)
             .withRouter(new RoundRobinPool(POOL_SIZE))
             .withDispatcher(WORKER_DISPATCHER));
-
+        // @on
         indexerActor = ctx.actorOf(Props.create(IndexerActor.class, indexer));
     }
 
@@ -56,10 +56,12 @@ public final class Supervisor extends UntypedActor {
                 out.format("Scraper indexing %s \r", visitedPageStore);
                 commit();
             } else {
+                // @off
                 visitedPageStore
                     .nextBatch()
                     .parallelStream()
                     .forEach(page -> getParserActor().tell(page, getSelf()));
+                // @on
             }
         } else if (message instanceof IndexedMessage) {
             IndexedMessage indexedMessage = (IndexedMessage) message;

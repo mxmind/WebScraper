@@ -1,12 +1,13 @@
 package com.mxmind.scraper.internal.utils;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.text.StrSubstitutor;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.text.StrSubstitutor;
 
 /**
  * The WebScraper solution.
@@ -15,8 +16,7 @@ import java.util.stream.Collectors;
  * @version 1.0-SNAPSHOT
  * @since 1.0-SNAPSHOT
  */
-@SuppressWarnings("unused")
-public class Props extends HashMap<String, String> {
+public final class Props extends HashMap<String, String> {
 
     private static final long serialVersionUID = 2211405016738281987L;
 
@@ -71,7 +71,7 @@ public class Props extends HashMap<String, String> {
     }
 
     public void fromProperties(Properties props) {
-        @SuppressWarnings({"unchecked", "rawtypes"})
+        @SuppressWarnings({ "unchecked", "rawtypes" })
         Map<String, String> map = (Map) props;
         super.putAll(map);
     }
